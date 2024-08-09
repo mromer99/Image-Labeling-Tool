@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link
+    href="{{ url_for('static', filename='css/style.css') }}"
+    rel="stylesheet"
+  />
+  <link
+    href="{{ url_for('static', filename='css/cropper.css') }}"
+    rel="stylesheet"
+  />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css" rel="stylesheet">
+
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+
+    <header>Gallery - Bees</header>
+        <div class="gallery-grid">
+            {% for image in images %}
+            <div class="image-container">
+                <div class="img-box">
+                    <img src="/images/{{ image.name }}" alt="Bee Image" data-labels="{{ image.labels | tojson | safe }}" />
+                    {% for label in image.labels %}
+                    <div class="image-label" style="
+                        {% if label | length > 3 %}
+                        left: {{ label[1]*100 - label[3]*100/2 }}%;
+                        top: {{ label[2]*100 - label[4]*100/2 }}%;
+                        width: {{ label[3]*100 }}%;
+                        height: {{ label[4]*100 }}%;
+                    {% else %}
+                        display: none; 
+                    {% endif %}
+                    "></div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+
+    <div id="crop-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <img id="crop-image" src="" alt="Crop Image">
+            <button id="save-button">save</button>
+            <div id="coordinates"></div>
+
+        </div>
+    </div>
+
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script>
+        function updateBoundingBoxes(imgElement, labels) {
+            var $img = $(imgElement); // get the image element
+            var originalWidth = $img[0].naturalWidth; // original width of image
+            var originalHeight = $img[0].naturalHeight; // original height of image
+            var currentWidth = $img.width(); // current width of image
+            var currentHeight = $img.height(); // current height of image
+
+            var m_w = currentWidth / originalWidth;
+            var m_h = currentHeight / originalHeight;
+
+            labels.forEach(function(label) {
+                var x = label[1] * originalWidth;
+                var y = label[2] * originalHeight;
+                var width = label[3] * originalWidth;
+                var height = label[4] * originalHeight;
+
+                var x_prime = x * m_w;
+                var y_prime = y * m_h;
+                var width_prime = width * m_w;
+                var height_prime = height * m_h;
+
+                var $label = $('<div>').addClass('image-label').css({
+                    left: (x_prime - width_prime / 2) + 'px',
+                    top: (y_prime - height_prime / 2) + 'px',
+                    width: width_prime + 'px',
+                    height: height_prime + 'px'
+                });
+
+                $img.parent().append($label);
+            });
+        }
+
+        // Call updateBoundingBoxes when the window is resized
+        $(window).on('resize', function() {
+            $('img').each(function() {
+                updateBoundingBoxes(this, $(this).data('labels'));
+            });
+        });
+        $('img').on('click', function() {
+            $('#crop-image').attr('src', this.src);
+            $('#crop-modal').show();
+        });
+        $('#close-modal').on('click', function() {
+            $('#crop-modal').hide();
+        });
+
+        // Get the modal
+var modal = document.getElementById("crop-modal");
+
+// Get the <span> element that closes the modal
+var span = document.getElementsByClassName("close-button")[0];
+
+// When the user clicks on <span> (x), close the modal
+span.onclick = function() {
+  modal.style.display = "none";
+  cropper.destroy();
+}
+
+// When the user clicks anywhere outside of the modal, close it
+window.onclick = function(event) {
+  if (event.target == modal) {
+    modal.style.display = "none";
+    cropper.destroy();
+  }
+}
+
+// When the user clicks on the save button, get the cropped image data
+document.getElementById('save-button').onclick = function() {
+    var croppedImageDataURL = cropper.getCroppedCanvas().toDataURL('image/png');
+    // Do something with croppedImageDataURL
+}
+
+document.querySelectorAll('img').forEach(function(img) {
+    img.addEventListener('click', function() {
+        document.getElementById('crop-image').src = this.src;
+        modal.style.display = "block";
+        var labels = JSON.parse(this.dataset.labels);
+        if (labels.length > 0 && labels[0].length >= 5) {
+            var label = labels[0];  // Use the first label
+            cropper = new Cropper(document.getElementById('crop-image'), {
+                aspectRatio: label[3] / label[4],
+                viewMode: 1,
+                autoCropArea: 0.8,
+                data: {
+                    x: label[1] * img.naturalWidth - label[3] * img.naturalWidth / 2,
+                    y: label[2] * img.naturalHeight - label[4] * img.naturalHeight / 2,
+                    width: label[3] * img.naturalWidth,
+                    height: label[4] * img.naturalHeight
+                },
+                crop: function(event) {
+                    // Get the coordinates
+                    var x = event.detail.x;
+                    var y = event.detail.y;
+                    var width = event.detail.width;
+                    var height = event.detail.height;
+                    var imageWidth = img.naturalWidth;
+                    var imageHeight = img.naturalHeight;
+                    
+                    // Calculate normalized coordinates
+                    var normalized = [
+                        label[0], // original class
+                        x / imageWidth + width / (2 * imageWidth),
+                        y / imageHeight + height / (2 * imageHeight),
+                        width / imageWidth,
+                        height / imageHeight
+                    ];
+
+                    // Display the coordinates
+                    document.getElementById('coordinates').textContent = normalized.join(' ');
+                }
+            });
+        }
+    });
+});
+
+var clickedImage;
+
+$('img').on('click', function() {
+    $('#crop-image').attr('src', this.src);
+    $('#crop-modal').show();
+    // Keep track of which bounding box was clicked
+    this.dataset.selectedLabel = $(this).index();
+    clickedImage = this;  // Store the clicked image
+});
+
+document.getElementById('save-button').onclick = function() {
+    var cropData = cropper.getCropBoxData();
+    var canvasData = cropper.getCanvasData();
+    var labels = $(clickedImage).data('labels');
+    labels[0][1] = (cropData.left - canvasData.left) / canvasData.width + cropData.width / (2 * canvasData.width);
+    labels[0][2] = (cropData.top - canvasData.top) / canvasData.height  + cropData.height / (2 * canvasData.height);
+    labels[0][3] = cropData.width / canvasData.width;
+    labels[0][4] = cropData.height / canvasData.height;
+
+    // Send the new labels to the server
+    $(clickedImage).data('labels', labels);
+
+    var filename = $('#crop-image').attr('src').split('/').pop();
+    $.ajax({
+        url: '/replace-labels/' + filename,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({labels: labels}),
+        success: function(response) {
+            console.log(response);
+        }
+    });
+}
+
+    
+    </script>
+</body>
+</html>

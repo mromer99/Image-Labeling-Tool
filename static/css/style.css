@@ -1,0 +1,35 @@
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* to increase the size of image */
+    grid-auto-rows: auto;  /* Each row will have height equal to the height of its content */
+    gap: 10px;
+}
+
+.image-container {
+    position: relative;
+    overflow: hidden;
+}
+
+.img-box {
+    position: relative;
+    width: 100%;  /* The .img-box will fill the width of its parent .image-container */
+}
+
+.img-box img {
+    width: 100%;  /* The image will fill the width of its parent .img-box */
+    object-fit: cover;  /* Maintain aspect ratio */
+}
+
+.image-label {
+    position: absolute;
+    border: 2px solid red;
+    box-sizing: border-box;
+}
+
+header {
+    background-color: #333;
+    color: #fff;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+}
