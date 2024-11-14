@@ -1,5 +1,5 @@
 *.venv
 *.logs
 
-*.git/
+.git/
 myenv/
